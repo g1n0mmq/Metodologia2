@@ -10,8 +10,7 @@ router = APIRouter(
     tags=["Clientes"]
 )
 
-# 2. RUTA: Crear un nuevo cliente (CREATE)
-# --- ¡CORREGIDA! ---
+# Endpoint para crear un nuevo cliente.
 @router.post("/", response_model=schemas.ClienteOut, status_code=201)
 async def crear_cliente(
     data: schemas.ClienteCreate, 
@@ -20,28 +19,26 @@ async def crear_cliente(
     # 1. Crea un objeto del modelo Cliente con los datos
     nuevo_cliente = models.Cliente(**data.model_dump())
     
-    # 2. Añade el objeto a la sesión de la BD
+    # 2. Agrega el nuevo cliente a la sesión de la base de datos.
     db.add(nuevo_cliente)
     
-    # 3. Guarda los cambios en la BD
+    # 3. Confirma la transacción para guardar los cambios en la base de datos.
     await db.commit()
     
-    # 4. Refresca el objeto (esto trae el nuevo 'id' desde la BD)
+    # 4. Actualiza el objeto `nuevo_cliente` con los datos generados por la base de datos (ej. el ID).
     await db.refresh(nuevo_cliente)
     
     return nuevo_cliente
 
-# 3. RUTA: Listar todos los clientes (READ)
-# --- (Esta ya estaba bien) ---
+# Endpoint para obtener una lista de todos los clientes.
 @router.get("/", response_model=list[schemas.ClienteOut])
 async def listar_clientes(db: AsyncSession = Depends(get_session)):
     stmt = select(models.Cliente)
     result = await db.execute(stmt)
     clientes = result.scalars().all() 
-    return [cliente for cliente in clientes]
+    return clientes
 
-# 4. RUTA: Actualizar un cliente (UPDATE)
-# --- ¡CORREGIDA! ---
+# Endpoint para actualizar la información de un cliente existente.
 @router.put("/{cliente_id}", response_model=schemas.ClienteOut)
 async def actualizar_cliente(
     cliente_id: int,
@@ -49,28 +46,26 @@ async def actualizar_cliente(
     db: AsyncSession = Depends(get_session)
 ):
     # 1. Primero, busca el cliente
-    stmt_select = select(models.Cliente).where(models.Cliente.id == cliente_id)
-    result = await db.execute(stmt_select)
-    cliente_db = result.scalars().first() # .first() obtiene un solo objeto o None
+    result = await db.execute(select(models.Cliente).where(models.Cliente.id == cliente_id))
+    cliente_db = result.scalars().first() # Obtiene el primer resultado o None si no existe.
     
-    # 2. Si no existe, lanza un error 404
+    # 2. Si el cliente no se encuentra, devuelve un error 404.
     if not cliente_db:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
-    # 3. Actualiza el objeto cliente_db con los datos nuevos
+    # 3. Itera sobre los datos proporcionados y actualiza los atributos del cliente en la base de datos.
     for key, value in data.model_dump().items():
-        setattr(cliente_db, key, value) # Esto es como: cliente_db.nombre = data.nombre
+        setattr(cliente_db, key, value)
 
-    # 4. Guarda (commit) los cambios
+    # 4. Confirma la transacción para guardar los cambios.
     await db.commit()
     
-    # 5. Refresca para asegurarte de que los datos están actualizados
+    # 5. Actualiza el objeto `cliente_db` para reflejar los cambios persistidos.
     await db.refresh(cliente_db)
     
     return cliente_db
 
-# 5. RUTA: Eliminar un cliente (DELETE)
-# --- (Esta ya estaba bien, no usa .returning) ---
+# Endpoint para eliminar un cliente por su ID.
 @router.delete("/{cliente_id}", status_code=204)
 async def eliminar_cliente(
     cliente_id: int, 
@@ -78,9 +73,10 @@ async def eliminar_cliente(
 ):
     stmt = delete(models.Cliente).where(models.Cliente.id == cliente_id)
     result = await db.execute(stmt)
-    
+    # `rowcount` indica cuántas filas fueron afectadas por la operación DELETE.
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
+    # Confirma la eliminación en la base de datos.
     await db.commit()
     return
