@@ -99,7 +99,7 @@ async def agregar_item_factura(
     return {"mensaje": "Item agregado correctamente"}
 # Endpoint para obtener el detalle de una factura específica, incluyendo información del producto.
 @router.get("/{factura_id}/detalle")
-async def detalle_factura(factura_id: int, db: AsyncSession = Depends(get_session)):
+async def detalle_factura(factura_id: int, db: AsyncSession = Depends(get_session)) -> list[schemas.DetalleFacturaItemOut]:
     query = text("""
         SELECT d.producto_id, p.nombre, d.cantidad, d.precio, (d.cantidad * d.precio) AS importe
         FROM detalle d
@@ -116,7 +116,7 @@ async def detalle_factura(factura_id: int, db: AsyncSession = Depends(get_sessio
     return items
 
 # Endpoint para generar un reporte de ventas agrupado por cliente.
-@router.get("/reporte/ventas-por-cliente")
+@router.get("/reporte/ventas-por-cliente", response_model=list[schemas.ReporteVentasClienteOut])
 async def reporte_ventas_cliente(db: AsyncSession = Depends(get_session)):
     query = text("""
         SELECT 

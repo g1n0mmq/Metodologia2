@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from decimal import Decimal
+
 # Schemas Pydantic para la validación de datos de Clientes.
 class ClienteBase(BaseModel):
     # Campos base para un cliente, usados tanto para entrada como para salida.
@@ -65,6 +66,27 @@ class DetalleOut(BaseModel):
     cantidad: int
     precio: Decimal
     created: datetime
+
+    class Config:
+        from_attributes = True
+
+class DetalleFacturaItemOut(BaseModel):
+    producto_id: int
+    nombre: str
+    cantidad: int
+    precio: Decimal
+    importe: Decimal
+
+    class Config:
+        from_attributes = True # Permite leer datos desde objetos
+
+# --- ¡CLASE FALTANTE CORREGIDA! ---
+# Esta clase faltaba y causaba el error en facturas.py
+class ReporteVentasClienteOut(BaseModel):
+    cliente_id: int
+    nombre: str
+    apellido: str
+    total_comprado: Decimal
 
     class Config:
         from_attributes = True
