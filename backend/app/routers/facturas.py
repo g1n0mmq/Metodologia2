@@ -7,6 +7,8 @@ from sqlalchemy.exc import SQLAlchemyError
 # Importaciones relativas
 from ..db import get_session
 from .. import models, schemas
+# 1. IMPORTA EL ARCHIVO DE AUTH
+from .. import auth
 
 # Creamos el router para Facturas
 router = APIRouter(
@@ -18,39 +20,65 @@ router = APIRouter(
 @router.post("/", response_model=schemas.FacturaIdOut)
 async def crear_factura(
     data: schemas.FacturaCreate, # Requiere el ID del cliente.
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
+    # 2. USA LA FUNCIÓN REAL y DESCOMENTA la línea
+    current_user: models.Usuario = Depends(auth.get_current_user) 
 ):
-    # Intenta crear la factura utilizando un Stored Procedure de la base de datos.
+    """
+    Crea una nueva factura en la base de datos.
+    Este método ahora usa una inserción directa con SQLAlchemy para mayor
+    claridad y un manejo de errores robusto.
+    """
     try:
-        sp_query = text("CALL sp_agregar_factura(:cliente_id, :fecha)")
-        await db.execute(sp_query, {"cliente_id": data.cliente_id, "fecha": datetime.utcnow()})
-        
-        result = await db.execute(text("SELECT LAST_INSERT_ID()"))
-        factura_id = result.scalar()
+        # 1. Instancia un objeto `Factura` con los datos proporcionados.
+        nueva_factura = models.Factura(
+            cliente_id=data.cliente_id,
+            fecha=datetime.utcnow(),
+            creado_por_usuario_id=current_user.id 
+        )
+        # 2. Añade, guarda y refresca para obtener el ID.
+        db.add(nueva_factura)
         await db.commit()
-        return {"factura_id": factura_id}
-
-    # Si el Stored Procedure falla, se realiza un rollback y se intenta un INSERT manual.
+        await db.refresh(nueva_factura)
+        
+        return {"factura_id": nueva_factura.id}
     except SQLAlchemyError as e:
         await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al crear la factura: {e}")
+
+# --- LÓGICA DE LISTAR FACTURAS (ADMIN vs USUARIO) ---
+@router.get("/", response_model=list[schemas.FacturaConNombresOut]) # <-- 1. CAMBIO AQUÍ
+async def listar_facturas(
+    db: AsyncSession = Depends(get_session),
+    # 4. USA LA FUNCIÓN REAL aquí también
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    # 2. CAMBIO: Usamos SQL puro (text()) para hacer los JOINs
+    query_sql = """
+        SELECT 
+            f.id, 
+            f.fecha, 
+            c.nombre as cliente_nombre, 
+            c.apellido as cliente_apellido,
+            u.username as creador_username
+        FROM factura f
+        LEFT JOIN clientes c ON f.cliente_id = c.id
+        LEFT JOIN usuarios u ON f.creado_por_usuario_id = u.id
+    """
+    
+    # 3. La lógica de roles (admin ve todo, usuario ve solo lo suyo)
+    if current_user.rol == 'admin':
+        query = text(query_sql + " ORDER BY f.fecha DESC")
+        result = await db.execute(query)
+    else:
+        # Añadimos el WHERE para el usuario normal
+        query_sql += " WHERE f.creado_por_usuario_id = :user_id ORDER BY f.fecha DESC"
+        query = text(query_sql)
+        result = await db.execute(query, {"user_id": current_user.id})
         
-        try:
-            # Fallback: Crea la factura insertando directamente en la tabla `factura`.
-            # 1. Instancia un objeto `Factura` con los datos proporcionados.
-            nueva_factura = models.Factura(
-                cliente_id=data.cliente_id,
-                fecha=datetime.utcnow()
-            )
-            # 2. Añade, guarda y refresca
-            db.add(nueva_factura)
-            await db.commit()
-            await db.refresh(nueva_factura)
-            
-            return {"factura_id": nueva_factura.id} # Devuelve el ID de la factura creada.
-        
-        except SQLAlchemyError as e_insert:
-            await db.rollback()
-            raise HTTPException(status_code=500, detail=f"Error al crear factura tras fallback: {str(e_insert)}")
+    facturas = result.mappings().all()
+    
+    return facturas
 
 
 # Endpoint para agregar un ítem a una factura existente.

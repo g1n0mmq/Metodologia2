@@ -52,6 +52,15 @@ class FacturaIdOut(BaseModel):
     # Schema para devolver el ID de una factura creada.
     factura_id: int
 
+class FacturaOut(BaseModel):
+    id: int
+    cliente_id: int
+    fecha: datetime
+    creado_por_usuario_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
 # --- Schemas para Detalle de Factura ---
 # Schemas Pydantic para la validación de datos de Detalles de Factura.
 class DetalleCreate(BaseModel):
@@ -87,6 +96,35 @@ class ReporteVentasClienteOut(BaseModel):
     nombre: str
     apellido: str
     total_comprado: Decimal
+
+    class Config:
+        from_attributes = True
+
+# --- Schema para Token ---
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+# Nuevo schema para la lista de facturas (con nombres)
+class FacturaConNombresOut(BaseModel):
+    id: int
+    fecha: datetime
+    cliente_nombre: Optional[str] = None
+    cliente_apellido: Optional[str] = None
+    creador_username: Optional[str] = None
+    class Config:
+        from_attributes = True
+
+# --- Schemas para Usuario ---
+class UsuarioBase(BaseModel):
+    username: str
+
+class UsuarioCreate(UsuarioBase):
+    password: str
+
+class UsuarioOut(UsuarioBase):
+    id: int
+    rol: str
 
     class Config:
         from_attributes = True

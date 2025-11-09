@@ -29,18 +29,25 @@ class Producto(Base):
     precio_venta = Column(Numeric(11, 2), nullable=False)
     
     # Relación: Un producto puede estar en muchos detalles
-    detalles = relationship('Detalle', back_populates='producto')
+    detalles = relationship('Detalle', back_populates='producto', cascade="all, delete-orphan")
 class Factura(Base):
     __tablename__ = 'factura'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     cliente_id = Column(Integer, ForeignKey('clientes.id'), nullable=False)
     fecha = Column(DateTime, nullable=False)
+    # --- 3. NUEVA COLUMNA DE "PROPIETARIO" ---
+    # --- CORRECCIÓN AQUÍ ---
+    creado_por_usuario_id = Column(Integer, ForeignKey('usuarios.id'), nullable=True)
     
     # Relación: Una factura pertenece a un cliente
     cliente = relationship('Cliente', back_populates='facturas')
     # Relación: Una factura puede tener múltiples ítems (detalles).
     detalle = relationship('Detalle', back_populates='factura', cascade="all, delete-orphan")
+    
+    # --- 4. NUEVA RELACIÓN ---
+    # Una factura fue creada por un usuario
+    creador = relationship('Usuario', back_populates='facturas_creadas')
 
 class Detalle(Base):
     __tablename__ = 'detalle'
@@ -64,3 +71,9 @@ class Usuario(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(45), unique=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
+    
+    # --- 1. NUEVA COLUMNA DE ROL ---
+    rol = Column(String(10), nullable=False, default='usuario') # 'usuario' o 'admin'
+    # --- 2. NUEVA RELACIÓN ---
+    # Un usuario puede crear muchas facturas
+    facturas_creadas = relationship('Factura', back_populates='creador')

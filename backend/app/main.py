@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Importa los routers que crearemos luego
+# --- 1. CORRECCIÓN DE IMPORTACIONES ---
 from .routers import clientes, productos, facturas
-from app import models
-from app.db import engine
+from . import auth
+from . import models
+from .db import engine
+    
 
 # Esta línea (comentada) se usa para que SQLAlchemy cree las tablas
 # en la base de datos basándose en los modelos definidos en `models.py`
@@ -32,11 +34,12 @@ app.add_middleware(
     allow_headers=["*"],         # Permite todos los encabezados HTTP
 )
 
-# Incluye los routers definidos en otros módulos para organizar las rutas de la API.
+# --- 2. CORRECCIÓN DEL INCLUDE ---
+app.include_router(auth.router)
 app.include_router(clientes.router)
 app.include_router(productos.router)
 app.include_router(facturas.router)
-    
+
 # Ruta raíz de bienvenida
 @app.get("/")
 def root():

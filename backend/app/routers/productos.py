@@ -4,7 +4,7 @@ from sqlalchemy import select, insert, update, delete
 
 from ..db import get_session
 from .. import models, schemas
-
+from .. import auth
 router = APIRouter(
     prefix="/productos",
     tags=["Productos"]
@@ -13,7 +13,8 @@ router = APIRouter(
 @router.post("/", response_model=schemas.ProductoOut, status_code=201)
 async def crear_producto(
     data: schemas.ProductoCreate,
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
+    current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     # Crea un objeto del modelo Producto con los datos recibidos.
     nuevo_producto = models.Producto(**data.model_dump())
@@ -26,7 +27,10 @@ async def crear_producto(
     return nuevo_producto
 
 @router.get("/", response_model=list[schemas.ProductoOut])
-async def listar_productos(db: AsyncSession = Depends(get_session)):
+async def listar_productos(
+    db: AsyncSession = Depends(get_session),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
     """
     Devuelve una lista de todos los productos.
     """
@@ -37,7 +41,8 @@ async def listar_productos(db: AsyncSession = Depends(get_session)):
 @router.get("/{producto_id}", response_model=schemas.ProductoOut)
 async def obtener_producto(
     producto_id: int,
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
+    current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     """
     Devuelve un producto específico por su ID.
@@ -55,7 +60,8 @@ async def obtener_producto(
 async def actualizar_producto(
     producto_id: int,
     data: schemas.ProductoCreate,
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
+    current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     # Busca el producto por su ID.
     stmt = select(models.Producto).where(models.Producto.id == producto_id)
@@ -77,12 +83,21 @@ async def actualizar_producto(
     return producto_db
 
 @router.delete("/{producto_id}", status_code=204)
-async def eliminar_producto(producto_id: int, db: AsyncSession = Depends(get_session)):
-    stmt = delete(models.Producto).where(models.Producto.id == producto_id)
+async def eliminar_producto(
+    producto_id: int, 
+    db: AsyncSession = Depends(get_session),
+    current_user: models.Usuario = Depends(auth.get_current_user)):
+    # 1. Busca el producto que se va a eliminar.
+    stmt = select(models.Producto).where(models.Producto.id == producto_id)
     result = await db.execute(stmt)
+    producto_a_eliminar = result.scalars().first()
 
-    # Si no se eliminó ninguna fila, el producto no existía.
-    if result.rowcount == 0:
+    # 2. Si no se encuentra, lanza un error 404.
+    if not producto_a_eliminar:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     
+    # 3. Usa db.delete() para que SQLAlchemy maneje las cascadas.
+    await db.delete(producto_a_eliminar)
+    
+    # 4. Confirma la transacción.
     await db.commit()
