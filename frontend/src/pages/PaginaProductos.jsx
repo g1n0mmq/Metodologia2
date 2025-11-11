@@ -29,7 +29,7 @@ function PaginaProductos() {
       const token = localStorage.getItem('authToken');
       const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
       
-      const response = await axios.get(`${API_URL}/productos`, authHeaders);
+      const response = await axios.get(`${API_URL}/productos/`, authHeaders);
       setProductos(response.data);
     } catch (err) {
       setError('Error al cargar los productos: ' + err.message);
@@ -66,13 +66,13 @@ function PaginaProductos() {
     try {
       if (editingId) {
         // --- LÓGICA DE ACTUALIZAR (PUT) ---
-        const response = await axios.put(`${API_URL}/productos/${editingId}`, dataParaAPI, authHeaders);
+        const response = await axios.put(`${API_URL}/productos/${editingId}/`, dataParaAPI, authHeaders);
         setProductos(productos.map(p => 
           p.id === editingId ? response.data : p
         ));
       } else {
         // --- LÓGICA DE CREAR (POST) ---
-        const response = await axios.post(`${API_URL}/productos`, dataParaAPI, authHeaders);
+        const response = await axios.post(`${API_URL}/productos/`, dataParaAPI, authHeaders);
         setProductos([...productos, response.data]);
       }
       
@@ -116,8 +116,8 @@ function PaginaProductos() {
       const token = localStorage.getItem('authToken');
       const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
       
-      // Asegúrate que la ruta DELETE NO tenga la barra al final
-      await axios.delete(`${API_URL}/productos/${productoId}`, authHeaders);
+      // --- CORREGIDO: Añadir '/' ---
+      await axios.delete(`${API_URL}/productos/${productoId}/`, authHeaders);
       
       setProductos(productos.filter(p => p.id !== productoId));
     } catch (err) {
@@ -127,48 +127,57 @@ function PaginaProductos() {
 
   return (
     <div>
-      <h2>Productos</h2>
+      <h2 className="section-title">Gestión de Productos</h2>
       
       {error && (
-        <div style={{ color: 'red' }}>
+        <div className="alert alert-error">
           {error}
-          <button onClick={() => setError(null)} style={{ marginLeft: '10px' }}>Cerrar</button>
+          <button onClick={() => setError(null)} className="close">&times;</button>
         </div>
       )}
 
       {/* --- FORMULARIO (Crear y Editar) --- */}
-      <form onSubmit={handleSubmit} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '10px' }}>
-        <h3>{editingId ? `Editando Producto ID: ${editingId}` : 'Nuevo Producto'}</h3>
-        
-        <label>Nombre: </label>
-        <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required /><br />
-        
-        <label>Descripción: </label>
-        <input type="text" name="descripcion" value={formData.descripcion} onChange={handleChange} required /><br />
-        
-        <label>Stock: </label>
-        <input type="number" name="stock" value={formData.stock} onChange={handleChange} required /><br />
-        
-        <label>Precio Compra: </label>
-        <input type="number" step="0.01" name="precio_compra" value={formData.precio_compra} onChange={handleChange} required /><br />
-        
-        <label>Precio Venta: </label>
-        <input type="number" step="0.01" name="precio_venta" value={formData.precio_venta} onChange={handleChange} required /><br />
-        <br />
+      <div className="form-section">
+        <form onSubmit={handleSubmit}>
+          <h3>{editingId ? `Editando Producto ID: ${editingId}` : 'Nuevo Producto'}</h3>
+          
+          <div className="form-group">
+            <label>Nombre: </label>
+            <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required />
+          </div>
+          <div className="form-group">
+            <label>Descripción: </label>
+            <input type="text" name="descripcion" value={formData.descripcion} onChange={handleChange} required />
+          </div>
+          <div className="form-row-triple">
+            <div className="form-group">
+              <label>Stock: </label>
+              <input type="number" name="stock" value={formData.stock} onChange={handleChange} required />
+            </div>
+            <div className="form-group">
+              <label>Precio Compra: </label>
+              <input type="number" step="0.01" name="precio_compra" value={formData.precio_compra} onChange={handleChange} required />
+            </div>
+            <div className="form-group">
+              <label>Precio Venta: </label>
+              <input type="number" step="0.01" name="precio_venta" value={formData.precio_venta} onChange={handleChange} required />
+            </div>
+          </div>
 
-        <button type="submit">
-          {editingId ? 'Actualizar Producto' : 'Guardar Producto'}
-        </button>
-        
-        {editingId && (
-          <button type="button" onClick={cancelEdit} style={{ marginLeft: '10px' }}>
-            Cancelar Edición
+          <button type="submit" className="btn btn-primary">
+            {editingId ? 'Actualizar Producto' : 'Guardar Producto'}
           </button>
-        )}
-      </form>
+          
+          {editingId && (
+            <button type="button" onClick={cancelEdit} className="btn" style={{ marginLeft: '10px' }}>
+              Cancelar Edición
+            </button>
+          )}
+        </form>
+      </div>
 
       {/* --- TABLA DE PRODUCTOS (con botones) --- */}
-      <table border="1" style={{ width: '100%', marginTop: '20px' }}>
+      <table className="items-table" style={{ marginTop: '20px' }}>
         <thead>
           <tr>
             <th>ID</th>
@@ -188,10 +197,10 @@ function PaginaProductos() {
               <td>{producto.stock}</td>
               <td>{producto.precio_venta}</td>
               <td>
-                <button onClick={() => handleEdit(producto)} style={{ marginRight: '5px' }}>
+                <button onClick={() => handleEdit(producto)} className="btn btn-primary" style={{ marginRight: '5px' }}>
                   Editar
                 </button>
-                <button onClick={() => handleDelete(producto.id)}>
+                <button onClick={() => handleDelete(producto.id)} className="btn btn-danger">
                   Eliminar
                 </button>
               </td>

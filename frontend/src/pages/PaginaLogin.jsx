@@ -15,13 +15,12 @@ function PaginaLogin() {
     setError(null);
 
     try {
-      // --- CORRECCIÓN CLAVE ---
-      // El endpoint /token espera datos en formato 'form data', no JSON.
-      const params = new URLSearchParams();
-      params.append('username', username);
-      params.append('password', password);
+      // --- CORRECCIÓN: El endpoint /token espera datos en formato 'form data', no JSON. ---
+      const formData = new URLSearchParams();
+      formData.append('username', username);
+      formData.append('password', password);
 
-      const response = await axios.post(`${API_URL}/token`, params, {
+      const response = await axios.post(`${API_URL}/token`, formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -41,11 +40,11 @@ function PaginaLogin() {
   };
 
   return (
-    <div>
-      <h2>Iniciar Sesión</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+    <div className="form-section">
+      <h2 className="section-title">Iniciar Sesión</h2>
+      {error && <div className="alert alert-error">{error}</div>}
       <form onSubmit={handleSubmit}>
-        <div>
+        <div className="form-group">
           <label>Usuario: </label>
           <input
             type="text"
@@ -54,7 +53,7 @@ function PaginaLogin() {
             required
           />
         </div>
-        <div>
+        <div className="form-group">
           <label>Contraseña: </label>
           <input
             type="password"
@@ -63,7 +62,7 @@ function PaginaLogin() {
             required
           />
         </div>
-        <button type="submit">Login</button>
+        <button type="submit" className="btn btn-primary btn-full">Login</button>
       </form>
     </div>
   );

@@ -36,12 +36,12 @@ function PaginaRegistro() {
   };
 
   return (
-    <div>
-      <h2>Registro de Nuevo Usuario</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {successMessage && <p style={{ color: 'green' }}>{successMessage}</p>}
+    <div className="form-section">
+      <h2 className="section-title">Registro de Nuevo Usuario</h2>
+      {error && <div className="alert alert-error">{error}</div>}
+      {successMessage && <div className="alert alert-success">{successMessage}</div>}
       <form onSubmit={handleSubmit}>
-        <div>
+        <div className="form-group">
           <label>Usuario: </label>
           <input
             type="text"
@@ -50,7 +50,7 @@ function PaginaRegistro() {
             required
           />
         </div>
-        <div>
+        <div className="form-group">
           <label>Contraseña: </label>
           <input
             type="password"
@@ -59,7 +59,7 @@ function PaginaRegistro() {
             required
           />
         </div>
-        <button type="submit">Registrarse</button>
+        <button type="submit" className="btn btn-primary btn-full">Registrarse</button>
       </form>
     </div>
   );

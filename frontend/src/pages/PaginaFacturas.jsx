@@ -4,42 +4,30 @@ import axios from 'axios';
 const API_URL = 'http://127.0.0.1:8000';
 
 function PaginaFacturas() {
-  // --- 1. ESTADOS DE DATOS ---
-  // Listas completas de clientes y productos para los <select>
+  // estados para guardar los datos que vienen del backend
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
-
-  // --- 1. AÑADE ESTE NUEVO ESTADO ---
-  // Guardará la lista de facturas creadas
   const [listaFacturas, setListaFacturas] = useState([]);
   
-  // --- 2. ESTADOS DEL FORMULARIO ---
-  // El cliente que el usuario seleccionó
+  // estados para manejar el formulario de nueva factura
   const [selectedClientId, setSelectedClientId] = useState('');
-  // El "carrito" de items antes de guardar la factura
-  const [cart, setCart] = useState([]); // Será una lista: [{ producto_id: 1, nombre: 'Laptop', cantidad: 1 }]
-  
-  // --- 3. ESTADOS PARA AÑADIR UN ITEM ---
-  // El producto que el usuario está a punto de añadir
+  const [cart, setCart] = useState([]);
   const [currentItemId, setCurrentItemId] = useState('');
-  // La cantidad que está a punto de añadir
   const [currentItemQty, setCurrentItemQty] = useState(1);
 
-  // --- 4. ESTADOS DE UI (User Interface) ---
+  // estados para mostrar mensajes de error, carga o exito
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // --- NUEVO ESTADO PARA VER DETALLES ---
-  // Guardará los items de la factura seleccionada y controlará la visibilidad del modal
+  // estado para el popup que muestra el detalle de la factura
   const [detalleVisible, setDetalleVisible] = useState({ visible: false, items: [], facturaId: null });
 
-  // --- 5. EFECTO: Cargar clientes y productos al inicio ---
-  // Trae los datos para llenar los menús desplegables
+  // efecto que se ejecuta una vez para cargar los datos iniciales
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // Obtenemos el token
+        // agarra el token para poder hacer las peticiones
         const token = localStorage.getItem('authToken');
         if (!token) {
           setError('No estás autenticado. Por favor, inicia sesión.');
@@ -47,17 +35,14 @@ function PaginaFacturas() {
         }
         const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
-        // Trae clientes (como antes)
-        const clientesRes = await axios.get(`${API_URL}/clientes`, authHeaders);
+        // pide los clientes, productos y facturas al backend
+        const clientesRes = await axios.get(`${API_URL}/clientes/`, authHeaders);
         setClientes(clientesRes.data);
         
-        // Trae productos (como antes)
-        const productosRes = await axios.get(`${API_URL}/productos`, authHeaders);
+        const productosRes = await axios.get(`${API_URL}/productos/`, authHeaders);
         setProductos(productosRes.data);
 
-        // --- 3. AÑADE ESTA LLAMADA ---
-        // Trae la lista de facturas
-        const facturasRes = await axios.get(`${API_URL}/facturas`, authHeaders);
+        const facturasRes = await axios.get(`${API_URL}/facturas/`, authHeaders);
         setListaFacturas(facturasRes.data);
         
       } catch (err) {
@@ -66,11 +51,10 @@ function PaginaFacturas() {
       }
     };
     loadInitialData();
-  }, []); // El [] vacío hace que solo se ejecute una vez
+  }, []);
 
-  // --- 6. FUNCIÓN: Añadir un item al carrito ---
+  // funcion para agregar un producto al carrito de la factura
   const handleAddItemToCart = () => {
-    // Validaciones
     const productoId = parseInt(currentItemId);
     const cantidad = parseInt(currentItemQty);
 
@@ -84,16 +68,15 @@ function PaginaFacturas() {
       return;
     }
 
-    // --- LÓGICA MEJORADA: NO DUPLICAR PRODUCTOS ---
+    // revisa si el producto ya esta en el carrito para no duplicarlo
     const existingItemIndex = cart.findIndex(item => item.producto_id === productoId);
 
     if (existingItemIndex > -1) {
-      // Si el producto ya existe, actualiza la cantidad
+      // si ya existe, solo suma la cantidad
       const updatedCart = [...cart];
       updatedCart[existingItemIndex].cantidad += cantidad;
       setCart(updatedCart);
     } else {
-      // Si es un producto nuevo, lo añade al carrito
       const newItem = {
         producto_id: producto.id,
         nombre: producto.nombre,
@@ -102,17 +85,16 @@ function PaginaFacturas() {
       setCart([...cart, newItem]);
     }
 
-    // Limpia los campos de selección de item
+    // limpia los inputs
     setCurrentItemId('');
     setCurrentItemQty(1);
     setError(null);
   };
 
-  // --- 7. FUNCIÓN PRINCIPAL: Guardar la factura (POST) ---
+  // funcion para guardar la factura completa
   const handleSubmitInvoice = async (e) => {
-    e.preventDefault(); // Evita que el formulario recargue la página
+    e.preventDefault();
     
-    // Validaciones
     if (!selectedClientId || cart.length === 0) {
       setError('Debes seleccionar un cliente y añadir al menos un producto.');
       return;
@@ -123,44 +105,36 @@ function PaginaFacturas() {
     setSuccessMessage('');
 
     try {
-      // --- PASO 0: Obtener el token de autenticación ---
-      const token = localStorage.getItem('authToken'); // O de donde lo estés guardando
+      const token = localStorage.getItem('authToken');
       if (!token) {
         throw new Error('No estás autenticado. Por favor, inicia sesión.');
       }
-
-      // Configura las cabeceras para enviar el token
       const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
-      // --- PASO A: Crear la cabecera de la factura ---
-      const facturaRes = await axios.post(`${API_URL}/facturas`, {
-        cliente_id: parseInt(selectedClientId)
-      }, authHeaders); // <-- ¡Enviamos las cabeceras aquí!
+      // primero, crea la factura para obtener un id
+      const facturaData = { cliente_id: parseInt(selectedClientId) };
+      const facturaRes = await axios.post(`${API_URL}/facturas/`, facturaData, authHeaders);
       
       const newFacturaId = facturaRes.data.factura_id;
       if (!newFacturaId) {
         throw new Error('No se pudo obtener el ID de la nueva factura.');
       }
 
-      // --- PASO B: Añadir cada item del carrito a la factura ---
-      // Usamos Promise.all para enviar todas las peticiones de items
+      // despues, agrega cada producto del carrito a esa factura (FastAPI maneja bien sin / aquí)
       await Promise.all(
-        cart.map(item => {
-          return axios.post(`${API_URL}/facturas/${newFacturaId}/items`, {
+        cart.map(item =>
+          axios.post(`${API_URL}/facturas/${newFacturaId}/items`, {
             producto_id: item.producto_id,
             cantidad: item.cantidad,
-            // Nota: No es necesario enviar el token aquí si la ruta de items no está protegida
-          });
-        })
+          }, authHeaders),
+        ),
       );
 
-      // --- ÉXITO ---
+      // si todo sale bien, muestra un mensaje y limpia el formulario
       setSuccessMessage(`¡Factura #${newFacturaId} creada con éxito!`);
       setLoading(false);
-      // Limpiamos el formulario
       setCart([]);
       setSelectedClientId('');
-      // Recargamos la página para ver la nueva factura en la lista
       window.location.reload();
 
     } catch (err) {
@@ -170,14 +144,14 @@ function PaginaFacturas() {
     }
   };
 
-  // --- NUEVA FUNCIÓN: VER DETALLE DE FACTURA ---
+  // funcion para pedir el detalle de una factura y mostrarlo en el popup
   const handleViewDetails = async (facturaId) => {
     setError(null);
     try {
       const token = localStorage.getItem('authToken');
       const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
-      const response = await axios.get(`${API_URL}/facturas/${facturaId}/detalle`, authHeaders);
+      const response = await axios.get(`${API_URL}/facturas/${facturaId}/detalle/`, authHeaders);
       
       setDetalleVisible({
         visible: true,
@@ -191,21 +165,60 @@ function PaginaFacturas() {
     }
   };
 
+  // funcion para pedir el pdf de la factura al backend
+  const handlePrintInvoice = async (facturaId) => {
+    setError(null);
+    try {
+      const token = localStorage.getItem('authToken');
+      const authHeaders = { 
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob', // le decimos a axios que la respuesta sera un archivo
+      };
 
-  // --- 8. RENDERIZADO (HTML) ---
+      const response = await axios.get(`${API_URL}/facturas/${facturaId}/pdf/`, authHeaders);
+
+      // crea un objeto blob, que es como un archivo temporal en el navegador
+      const file = new Blob(
+        [response.data], 
+        { type: 'application/pdf' }
+      );
+      
+      // crea una url temporal para ese archivo
+      const fileURL = URL.createObjectURL(file);
+      
+      // abre la url en una nueva pestaña para que el navegador muestre el pdf
+      window.open(fileURL, '_blank');
+
+    } catch (err) {
+      let errorMsg = 'No se pudo generar el PDF. ';
+      if (err.response && err.response.data instanceof Blob) {
+        try {
+          const errorText = await err.response.data.text();
+          const errorJson = JSON.parse(errorText);
+          errorMsg += errorJson.detail || 'Error del servidor.';
+        } catch {
+          errorMsg += 'No se pudo leer el detalle del error del servidor.';
+        }
+      } else {
+        errorMsg += err.response?.data?.detail || err.message;
+      }
+      setError(errorMsg);
+    }
+  };
+
+  // aqui empieza el html que se va a mostrar
   return (
-    <div>
-      <h2>Nueva Factura</h2>
+    <div className="fade-in">
+      <h2 className="section-title">Gestión de Facturas</h2>
 
-      {error && <div style={{ color: 'red', border: '1px solid red', padding: '10px', margin: '10px 0' }}>{error}</div>}
-      {successMessage && <div style={{ color: 'green', border: '1px solid green', padding: '10px', margin: '10px 0' }}>{successMessage}</div>}
-
-      {/* --- MODAL PARA VER DETALLES --- */}
+      {error && <div className="alert alert-error">{error}</div>}
+      {successMessage && <div className="alert alert-success">{successMessage}</div>}
       {detalleVisible.visible && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ background: 'white', padding: '20px', borderRadius: '5px', width: '600px' }}>
-            <h3>Detalle de la Factura #{detalleVisible.facturaId}</h3>
-            <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="modal" style={{ display: 'block' }}>
+          <div className="modal-content">
+            <span className="close" onClick={() => setDetalleVisible({ visible: false, items: [], facturaId: null })}>&times;</span>
+            <h3 className="section-title">Detalle de la Factura #{detalleVisible.facturaId}</h3>
+            <table className="items-table">
               <thead>
                 <tr>
                   <th>Producto</th>
@@ -225,118 +238,119 @@ function PaginaFacturas() {
                 ))}
               </tbody>
             </table>
-            <button onClick={() => setDetalleVisible({ visible: false, items: [], facturaId: null })} style={{ marginTop: '20px' }}>Cerrar</button>
+            <button onClick={() => handlePrintInvoice(detalleVisible.facturaId)} className="btn btn-success" style={{ marginTop: '20px' }}>
+              Imprimir PDF
+            </button>
           </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmitInvoice}>
-        
-        <fieldset style={{ marginBottom: '20px' }}>
-          <legend>1. Seleccionar Cliente</legend>
-          <select 
-            value={selectedClientId} 
-            onChange={(e) => setSelectedClientId(e.target.value)}
-            required
-          >
-            <option value="">-- Elige un cliente --</option>
-            {clientes.map(cliente => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.nombre} {cliente.apellido} (DNI: {cliente.dni})
-              </option>
-            ))}
-          </select>
-        </fieldset>
-
-        <fieldset style={{ marginBottom: '20px' }}>
-          <legend>2. Agregar Productos</legend>
-          <div>
-            <label>Producto: </label>
-            <select value={currentItemId} onChange={(e) => setCurrentItemId(e.target.value)}>
-              <option value="">-- Elige un producto --</option>
-              {productos.map(prod => (
-                <option key={prod.id} value={prod.id}>
-                  {prod.nombre} (Stock: {prod.stock})
+      <div className="form-section">
+        <form onSubmit={handleSubmitInvoice}>
+          <div className="form-group">
+            <label>1. Seleccionar Cliente</label>
+            <select 
+              value={selectedClientId} 
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              required
+            >
+              <option value="">-- Elige un cliente --</option>
+              {clientes.map(cliente => (
+                <option key={cliente.id} value={cliente.id}>
+                  {cliente.nombre} {cliente.apellido} (DNI: {cliente.dni})
                 </option>
               ))}
             </select>
-            
-            <label style={{ marginLeft: '10px' }}>Cantidad: </label>
-            <input 
-              type="number" 
-              value={currentItemQty} 
-              onChange={(e) => setCurrentItemQty(e.target.value)} 
-              min="1"
-              style={{ width: '60px' }}
-            />
-            
-            <button type="button" onClick={handleAddItemToCart} style={{ marginLeft: '10px' }}>
-              Añadir al Carrito
-            </button>
           </div>
-        </fieldset>
 
-        <h3>Carrito de la Factura</h3>
-        <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{padding: '8px'}}>Producto</th>
-              <th style={{padding: '8px'}}>Cantidad</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cart.map((item, index) => (
-              <tr key={index}>
-                <td style={{padding: '8px'}}>{item.nombre}</td>
-                <td style={{padding: '8px', textAlign: 'center'}}>{item.cantidad}</td>
-              </tr>
-            ))}
-            {cart.length === 0 && (
+          <div className="form-group">
+            <label>2. Agregar Productos</label>
+            <div className="form-row-triple">
+              <select value={currentItemId} onChange={(e) => setCurrentItemId(e.target.value)}>
+                <option value="">-- Elige un producto --</option>
+                {productos.map(prod => (
+                  <option key={prod.id} value={prod.id}>
+                    {prod.nombre} (Stock: {prod.stock})
+                  </option>
+                ))}
+              </select>
+              <input 
+                type="number" 
+                value={currentItemQty} 
+                onChange={(e) => setCurrentItemQty(e.target.value)} 
+                min="1"
+                placeholder="Cantidad"
+              />
+              <button type="button" onClick={handleAddItemToCart} className="btn btn-primary">
+                Añadir al Carrito
+              </button>
+            </div>
+          </div>
+
+          <h3>Carrito de la Factura</h3>
+          <table className="items-table">
+            <thead>
               <tr>
-                <td colSpan="2" style={{padding: '8px', textAlign: 'center'}}>El carrito está vacío</td>
+                <th>Producto</th>
+                <th>Cantidad</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-        
-        <button 
-          type="submit" 
-          disabled={loading}
-          style={{ marginTop: '20px', fontSize: '1.2em', padding: '10px' }}
-        >
-          {loading ? 'Guardando...' : 'Crear Factura'}
-        </button>
-      </form>
+            </thead>
+            <tbody>
+              {cart.map((item, index) => (
+                <tr key={index}>
+                  <td>{item.nombre}</td>
+                  <td style={{ textAlign: 'center' }}>{item.cantidad}</td>
+                </tr>
+              ))}
+              {cart.length === 0 && (
+                <tr>
+                  <td colSpan="2" style={{ textAlign: 'center' }}>El carrito está vacío</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          
+          <button type="submit" disabled={loading} className="btn btn-success btn-full">
+            {loading ? <span className="loading"></span> : 'Crear Factura'}
+          </button>
+        </form>
+      </div>
 
       <hr style={{ margin: '40px 0' }} />
 
       {/* --- 5. AÑADE ESTA NUEVA TABLA AL FINAL --- */}
-      <h2>Facturas Creadas</h2>
-      <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <h3>Facturas Creadas</h3>
+      <table className="items-table">
         <thead>
           <tr>
-            <th style={{padding: '8px'}}>Factura ID</th>
-            <th style={{padding: '8px'}}>Fecha</th>
-            <th style={{padding: '8px'}}>Cliente</th>
-            <th style={{padding: '8px'}}>Creado por (Usuario)</th>
-            <th style={{padding: '8px'}}>Acciones</th>
+            <th>Factura ID</th>
+            <th>Fecha</th>
+            <th>Cliente</th>
+            <th>Creado por (Usuario)</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
           {listaFacturas.map(factura => (
             <tr key={factura.id}>
-              <td style={{padding: '8px'}}>{factura.id}</td>
-              <td style={{padding: '8px'}}>{new Date(factura.fecha).toLocaleString()}</td>
-              <td style={{padding: '8px'}}>{factura.cliente_nombre} {factura.cliente_apellido}</td>
-              <td style={{padding: '8px'}}>{factura.creador_username}</td>
-              <td style={{padding: '8px', textAlign: 'center'}}>
-                <button onClick={() => handleViewDetails(factura.id)}>Ver Detalle</button>
+              <td>{factura.id}</td>
+              <td>
+                {new Date(factura.fecha).toLocaleString('es-AR', {
+                  year: 'numeric', month: '2-digit', day: '2-digit',
+                  hour: '2-digit', minute: '2-digit', second: '2-digit'
+                })}
+              </td>
+              <td>{factura.cliente_nombre} {factura.cliente_apellido}</td>
+              <td>{factura.creador_username}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => handleViewDetails(factura.id)} className="btn btn-primary" style={{marginRight: '5px'}}>Ver Detalle</button>
+                <button onClick={() => handlePrintInvoice(factura.id)} className="btn btn-success">Imprimir</button>
               </td>
             </tr>
           ))}
           {listaFacturas.length === 0 && (
             <tr>
-              <td colSpan="5" style={{padding: '8px', textAlign: 'center'}}>
+              <td colSpan="5" style={{ textAlign: 'center' }}>
                 No se encontraron facturas.
               </td>
             </tr>

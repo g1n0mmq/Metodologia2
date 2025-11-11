@@ -29,7 +29,7 @@ function PaginaCliente() {
     try {
       const token = localStorage.getItem('authToken');
       const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(`${API_URL}/clientes`, authHeaders);
+      const response = await axios.get(`${API_URL}/clientes/`, authHeaders);
       setClientes(response.data);
     } catch (err) {
       setError('Error al cargar los clientes: ' + err.message);
@@ -59,8 +59,8 @@ function PaginaCliente() {
     try {
       if (editingId) {
         // --- LÓGICA DE ACTUALIZAR (PUT) ---
-        // Usamos la ruta PUT /clientes/{id}/
-        const response = await axios.put(`${API_URL}/clientes/${editingId}`, formData, authHeaders);
+        // Usamos la ruta PUT /clientes/{id}/  <-- CORREGIDO
+        const response = await axios.put(`${API_URL}/clientes/${editingId}/`, formData, authHeaders);
         
         // Actualizamos la lista de clientes en la pantalla
         setClientes(clientes.map(c => 
@@ -70,7 +70,7 @@ function PaginaCliente() {
 
       } else {
         // --- LÓGICA DE CREAR (POST) (sin cambios) ---
-        const response = await axios.post(`${API_URL}/clientes`, formData, authHeaders);
+        const response = await axios.post(`${API_URL}/clientes/`, formData, authHeaders);
         setClientes([...clientes, response.data]);
         setSuccessMessage(`Cliente "${response.data.nombre}" creado con éxito.`);
       }
@@ -119,7 +119,7 @@ function PaginaCliente() {
     try {
       const token = localStorage.getItem('authToken');
       const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.delete(`${API_URL}/clientes/${clienteId}`, authHeaders);
+      await axios.delete(`${API_URL}/clientes/${clienteId}/`, authHeaders);
       setClientes(clientes.filter(cliente => cliente.id !== clienteId));
     } catch (err) {
       setError('Error al eliminar el cliente: ' + err.message);
@@ -131,63 +131,74 @@ function PaginaCliente() {
 
   return (
     <div>
-      <h2>Clientes</h2>
+      <h2 className="section-title">Gestión de Clientes</h2>
       
       {/* Mostramos el error si existe */}
       {error && (
-        <div style={{ color: 'red' }}>
+        <div className="alert alert-error">
           {error}
-          <button onClick={() => setError(null)} style={{ marginLeft: '10px' }}>Cerrar</button>
+          <button onClick={() => setError(null)} className="close">&times;</button>
         </div>
       )}
       {/* Mostramos mensaje de éxito */}
       {successMessage && (
-        <div style={{ color: 'green' }}>
+        <div className="alert alert-success">
           {successMessage}
-          <button onClick={() => setSuccessMessage(null)} style={{ marginLeft: '10px' }}>Cerrar</button>
+          <button onClick={() => setSuccessMessage(null)} className="close">&times;</button>
         </div>
       )}
 
       {/* --- FORMULARIO (ahora es de "Editar" o "Nuevo") --- */}
-      <form onSubmit={handleSubmit} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '10px' }}>
-        
-        {/* Título dinámico */}
-        <h3>{editingId ? `Editando Cliente ID: ${editingId}` : 'Nuevo Cliente'}</h3>
-        
-        {/* ... (campos del formulario, sin cambios) ... */}
-        <label>Nombre: </label>
-        <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required /><br />
-        <label>Apellido: </label>
-        <input type="text" name="apellido" value={formData.apellido} onChange={handleChange} required /><br />
-        <label>DNI: </label>
-        <input type="number" name="dni" value={formData.dni} onChange={handleChange} required /><br />
-        <label>Dirección: </label>
-        <input type="text" name="direccion" value={formData.direccion} onChange={handleChange} /><br />
-        <label>Teléfono: </label>
-        <input type="text" name="telefono" value={formData.telefono} onChange={handleChange} /><br />
-        <br />
+      <div className="form-section">
+        <form onSubmit={handleSubmit}>
+          
+          {/* Título dinámico */}
+          <h3>{editingId ? `Editando Cliente ID: ${editingId}` : 'Nuevo Cliente'}</h3>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label>Nombre: </label>
+              <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required />
+            </div>
+            <div className="form-group">
+              <label>Apellido: </label>
+              <input type="text" name="apellido" value={formData.apellido} onChange={handleChange} required />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>DNI: </label>
+            <input type="number" name="dni" value={formData.dni} onChange={handleChange} required />
+          </div>
+          <div className="form-group">
+            <label>Dirección: </label>
+            <input type="text" name="direccion" value={formData.direccion} onChange={handleChange} />
+          </div>
+          <div className="form-group">
+            <label>Teléfono: </label>
+            <input type="text" name="telefono" value={formData.telefono} onChange={handleChange} />
+          </div>
 
-        {/* Botón de envío dinámico */}
-        <button type="submit">
-          {editingId ? 'Actualizar Cliente' : 'Guardar Cliente'}
-        </button>
-        
-        {/* NUEVO BOTÓN: Cancelar edición */}
-        {editingId && (
-          <button type="button" onClick={cancelEdit} style={{ marginLeft: '10px' }}>
-            Cancelar Edición
+          {/* Botón de envío dinámico */}
+          <button type="submit" className="btn btn-primary">
+            {editingId ? 'Actualizar Cliente' : 'Guardar Cliente'}
           </button>
-        )}
-      </form>
+          
+          {editingId && (
+            <button type="button" onClick={cancelEdit} className="btn" style={{marginLeft: '10px'}}>
+              Cancelar Edición
+            </button>
+          )}
+        </form>
+      </div>
 
       {/* --- TABLA DE CLIENTES (con botón de editar) --- */}
-      <table border="1" style={{ width: '100%', marginTop: '20px' }}>
+      <table className="items-table" style={{marginTop: '20px'}}>
         <thead>
           <tr>
             <th>ID</th>
             <th>Nombre</th>
             <th>Apellido</th>
-            <th>DNI   </th>
+            <th>DNI</th>
             <th>Teléfono</th>
             <th>Acciones</th>
           </tr>
@@ -201,11 +212,10 @@ function PaginaCliente() {
               <td>{cliente.dni}</td>
               <td>{cliente.telefono}</td>
               <td>
-                {/* --- NUEVO BOTÓN DE EDITAR --- */}
-                <button onClick={() => handleEdit(cliente)} style={{ marginRight: '5px' }}>
+                <button onClick={() => handleEdit(cliente)} className="btn btn-primary" style={{ marginRight: '5px' }}>
                   Editar
                 </button>
-                <button onClick={() => handleDelete(cliente.id)}>
+                <button onClick={() => handleDelete(cliente.id)} className="btn btn-danger">
                   Eliminar
                 </button>
               </td>

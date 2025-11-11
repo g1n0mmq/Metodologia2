@@ -21,24 +21,23 @@ function App() {
   };
 
   return (
-    <div>
-      <nav>
-        <h3>TP Final</h3>
-        <ul>
+    <div className="container">
+      <nav className="main-nav">
+        <h3 className="nav-brand">TP Final</h3>
+        <ul className="nav-links">
           <li><NavLink to="/">Inicio</NavLink></li>
-          {token && <li><NavLink to="/clientes">Clientes</NavLink></li>}
-          {token && <li><NavLink to="/productos">Productos</NavLink></li>}
-          {token && <li><NavLink to="/facturas">Facturas</NavLink></li>}
-          
-          {!token && <li><NavLink to="/login">Login</NavLink></li>}
-          {!token && <li><NavLink to="/registro">Registro</NavLink></li>}
-          
-          {token && (
-            <li>
-              <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'blue', cursor: 'pointer', textDecoration: 'underline' }}>
-                Logout
-              </button>
-            </li>
+          {token ? (
+            <>
+              <li><NavLink to="/clientes">Clientes</NavLink></li>
+              <li><NavLink to="/productos">Productos</NavLink></li>
+              <li><NavLink to="/facturas">Facturas</NavLink></li>
+              <li><button onClick={handleLogout} className="btn-logout">Logout</button></li>
+            </>
+          ) : (
+            <>
+              <li><NavLink to="/login">Login</NavLink></li>
+              <li><NavLink to="/registro">Registro</NavLink></li>
+            </>
           )}
         </ul>
       </nav>
