@@ -191,14 +191,15 @@ function PaginaCliente() {
         </form>
       </div>
 
-      {/* --- TABLA DE CLIENTES (con botón de editar) --- */}
-      <table className="items-table" style={{marginTop: '20px'}}>
+      {/* --- TABLA DE CLIENTES (¡ESTO FALTABA!) --- */}
+      <table className="items-table" style={{ marginTop: '20px' }}>
         <thead>
           <tr>
             <th>ID</th>
             <th>Nombre</th>
             <th>Apellido</th>
             <th>DNI</th>
+            <th>Dirección</th>
             <th>Teléfono</th>
             <th>Acciones</th>
           </tr>
@@ -210,9 +211,13 @@ function PaginaCliente() {
               <td>{cliente.nombre}</td>
               <td>{cliente.apellido}</td>
               <td>{cliente.dni}</td>
-              <td>{cliente.telefono}</td>
+              <td>{cliente.direccion || 'N/A'}</td>
+              <td>{cliente.telefono || 'N/A'}</td>
               <td>
-                <button onClick={() => handleEdit(cliente)} className="btn btn-primary" style={{ marginRight: '5px' }}>
+                <button 
+                  onClick={() => handleEdit(cliente)} 
+                  className="btn btn-primary" 
+                  style={{ marginRight: '5px' }}>
                   Editar
                 </button>
                 <button onClick={() => handleDelete(cliente.id)} className="btn btn-danger">
